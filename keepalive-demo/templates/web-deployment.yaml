@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-web
+spec:
+  replicas: {{ .Values.web.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-web
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-web
+    spec:
+      containers:
+        - name: web
+          image: "{{ .Values.app.image }}"
+          imagePullPolicy: {{ .Values.app.imagePullPolicy }}
+          env:
+            - name: APP_MODE
+              value: "web"
+            - name: DB_HOST
+              value: "{{ .Release.Name }}-postgresql-ha-pgpool"
+            - name: DB_USER
+              value: "{{ .Values['postgresql-ha'].postgresql.username }}"
+            - name: DB_PASS
+              value: "{{ .Values['postgresql-ha'].postgresql.password }}"
+            - name: DB_NAME
+              value: "{{ .Values['postgresql-ha'].postgresql.database }}"
+          ports:
+            - containerPort: 8080

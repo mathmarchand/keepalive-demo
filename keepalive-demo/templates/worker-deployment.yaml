@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-worker
+spec:
+  replicas: {{ .Values.worker.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-worker
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-worker
+    spec:
+      containers:
+        - name: worker
+          image: "{{ .Values.app.image }}"
+          imagePullPolicy: {{ .Values.app.imagePullPolicy }}
+          env:
+            - name: APP_MODE
+              value: "worker"
+            - name: DB_HOST
+              value: "{{ .Release.Name }}-postgresql-ha-pgpool"
+            - name: DB_USER
+              value: "{{ .Values['postgresql-ha'].postgresql.username }}"
+            - name: DB_PASS
+              value: "{{ .Values['postgresql-ha'].postgresql.password }}"
+            - name: DB_NAME
+              value: "{{ .Values['postgresql-ha'].postgresql.database }}"

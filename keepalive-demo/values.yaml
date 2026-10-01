@@ -1,0 +1,30 @@
+app:
+  image: "harbor01.projek-survival.dontexist.com/library/keepalive-demo:1.0.0" 
+  imagePullPolicy: IfNotPresent
+  
+web:
+  replicaCount: 3  # Highly Available frontend
+  service:
+    type: LoadBalancer  # Highly available endpoint via LoadBalancer
+    port: 80
+    targetPort: 8080
+
+worker:
+  replicaCount: 1 # Only 1 replica needed to write exactly once a minute
+
+# Configuration for the Bitnami Highly Available PostgreSQL dependency
+postgresql-ha:
+  enabled: true
+  postgresql:
+    database: keepalivedb
+    username: myuser
+    password: mypassword
+    # High availability setup for Postgres
+    replicaCount: 3
+  persistence:
+    enabled: true
+    storageClass: "cephxfs" # Leveraging your CephXFS Storage Class
+    size: 10Gi
+  pgpool:
+    # PgPool acts as a loadbalancer and connection pooler for the Postgres cluster
+    replicaCount: 2

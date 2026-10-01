@@ -13,7 +13,7 @@ worker:
   replicaCount: 1 # Only 1 replica needed to write exactly once a minute
 
 # Configuration for the Bitnami Highly Available PostgreSQL dependency
-postgresql:
+postgres:
   image: "postgres:16-alpine"
   database: keepalivedb
   username: myuser

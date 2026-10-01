@@ -22,8 +22,8 @@ spec:
             - name: DB_HOST
               value: "{{ .Release.Name }}-postgresql-ha-pgpool"
             - name: DB_USER
-              value: "{{ .Values['postgresql-ha'].postgresql.username }}"
+              value: {{ index .Values "postgresql-ha" "postgresql" "username" | quote }}
             - name: DB_PASS
-              value: "{{ .Values['postgresql-ha'].postgresql.password }}"
+              value: {{ index .Values "postgresql-ha" "postgresql" "password" | quote }}
             - name: DB_NAME
-              value: "{{ .Values['postgresql-ha'].postgresql.database }}"
+              value: {{ index .Values "postgresql-ha" "postgresql" "database" | quote }}

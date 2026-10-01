@@ -13,18 +13,10 @@ worker:
   replicaCount: 1 # Only 1 replica needed to write exactly once a minute
 
 # Configuration for the Bitnami Highly Available PostgreSQL dependency
-postgresql-ha:
-  enabled: true
-  postgresql:
-    database: keepalivedb
-    username: myuser
-    password: mypassword
-    # High availability setup for Postgres
-    replicaCount: 3
-  persistence:
-    enabled: true
-    storageClass: "cephxfs" # Leveraging your CephXFS Storage Class
-    size: 10Gi
-  pgpool:
-    # PgPool acts as a loadbalancer and connection pooler for the Postgres cluster
-    replicaCount: 2
+postgresql:
+  image: "postgres:16-alpine"
+  database: keepalivedb
+  username: myuser
+  password: mypassword
+  storageClass: "cephxfs"
+  storageSize: 10Gi

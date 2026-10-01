@@ -2,7 +2,3 @@ apiVersion: v2
 name: keepalive-demo
 version: 0.1.0
 description: A Helm chart for a keepalive demo app on Canonical K8s
-dependencies:
-  - name: postgresql-ha
-    version: 14.2.3
-    repository: https://charts.bitnami.com/bitnami

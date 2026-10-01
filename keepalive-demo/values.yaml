@@ -12,11 +12,9 @@ web:
 worker:
   replicaCount: 1 # Only 1 replica needed to write exactly once a minute
 
-# Configuration for the Bitnami Highly Available PostgreSQL dependency
-postgres:
-  image: "postgres:16-alpine"
-  database: keepalivedb
-  username: myuser
-  password: mypassword
-  storageClass: "ceph-xfs"
-  storageSize: 10Gi
+db:
+  # Charmed PostgreSQL creates a 'db-primary' service in the Juju model namespace
+  host: "db-primary.keepalive.svc.cluster.local"
+  database: "keepalivedb"
+  username: "" # Passed via --set or populated here from Juju
+  password: "" # Passed via --set or populated here from Juju

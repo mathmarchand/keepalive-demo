@@ -1,0 +1,41 @@
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-web-policy
+spec:
+  endpointSelector:
+    matchLabels:
+      app: {{ .Release.Name }}-web
+  ingress:
+    - fromEndpoints:
+        - {} # Accept traffic from load balancer / ingress sources
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+          rules:
+            http:
+              - method: "GET"
+                path: "^/$"
+  egress:
+    # 1. Allow DNS resolution
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+          rules:
+            dns:
+              - matchPattern: "*"
+    # 2. Allow egress ONLY to Charmed PostgreSQL
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: db
+      toPorts:
+        - ports:
+            - port: "5432"
+              protocol: TCP

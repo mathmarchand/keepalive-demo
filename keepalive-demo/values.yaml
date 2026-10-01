@@ -18,5 +18,5 @@ postgres:
   database: keepalivedb
   username: myuser
   password: mypassword
-  storageClass: "cephxfs"
+  storageClass: "ceph-xfs"
   storageSize: 10Gi

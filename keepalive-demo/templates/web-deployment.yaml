@@ -20,12 +20,21 @@ spec:
             - name: APP_MODE
               value: "web"
             - name: DB_HOST
-              value: "{{ .Release.Name }}-postgresql-ha-pgpool"
+              value: "{{ .Release.Name }}-postgres"
             - name: DB_USER
-              value: {{ index .Values "postgresql-ha" "postgresql" "username" | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-postgres-secret
+                  key: POSTGRES_USER
             - name: DB_PASS
-              value: {{ index .Values "postgresql-ha" "postgresql" "password" | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-postgres-secret
+                  key: POSTGRES_PASSWORD
             - name: DB_NAME
-              value: {{ index .Values "postgresql-ha" "postgresql" "database" | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-postgres-secret
+                  key: POSTGRES_DB
           ports:
             - containerPort: 8080

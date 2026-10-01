@@ -8,7 +8,10 @@ spec:
       app: {{ .Release.Name }}-web
   ingress:
     - fromEndpoints:
-        - {} # Accept traffic from load balancer / ingress sources
+        - world
+        - host
+        - remote-node
+        - cluster
       toPorts:
         - ports:
             - port: "8080"

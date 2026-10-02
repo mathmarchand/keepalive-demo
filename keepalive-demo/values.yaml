@@ -1,5 +1,5 @@
 app:
-  image: "harbor01.projek-survival.dontexist.com/library/keepalive-demo:1.0.0" 
+  image: "harbor01.projek-survival.dontexist.com/library/keepalive-demo:1.0.1" 
   imagePullPolicy: IfNotPresent
   
 web:

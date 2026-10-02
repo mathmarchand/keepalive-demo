@@ -1,4 +1,4 @@
-import os, time, psycopg2
+import os, time, psycopg
 from flask import Flask, render_template_string
 from kubernetes import client, config
 
@@ -10,7 +10,7 @@ DB_PASS = os.getenv("DB_PASS", "password")
 DB_NAME = os.getenv("DB_NAME", "keepalivedb")
 
 def get_db_connection():
-    return psycopg2.connect(
+    return psycopg.connect(
         host=DB_HOST,
         user=DB_USER,
         password=DB_PASS,
@@ -42,7 +42,6 @@ def get_pod_statuses():
             app_label = labels.get("app", "")
             k8s_app_label = labels.get("app.kubernetes.io/name", "")
             
-            # Identify component type
             if "web" in app_label:
                 pod_type = "Web Frontend"
             elif "worker" in app_label:
@@ -78,7 +77,6 @@ HTML_TEMPLATE = """
 <html>
 <head>
     <title>Keepalive Dashboard</title>
-    <!-- Auto-refresh page every 60 seconds -->
     <meta http-equiv="refresh" content="60">
     <style>
         body { font-family: Arial, sans-serif; margin: 30px; background-color: #f8f9fa; }

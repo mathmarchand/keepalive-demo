@@ -47,19 +47,19 @@ spec:
           readinessProbe:
             exec:
               command:
-                - sh
+                - python3
                 - -c
-                - 'test -f /tmp/worker_heartbeat && [ $(($(date +%s) - $(stat -c %Y /tmp/worker_heartbeat))) -lt 150 ]'
-            initialDelaySeconds: 10
+                - "import os, time, sys; sys.exit(0 if os.path.exists('/tmp/worker_heartbeat') and (time.time() - os.path.getmtime('/tmp/worker_heartbeat')) < 180 else 1)"
+            initialDelaySeconds: 15
             periodSeconds: 15
-            failureThreshold: 2
-          # Liveness Probe: Restarts container if heartbeat file is missing or older than 180 seconds
+            failureThreshold: 3
+          # Liveness Probe: Restarts container if heartbeat file is missing or older than 300 seconds
           livenessProbe:
             exec:
               command:
-                - sh
+                - python3
                 - -c
-                - 'test -f /tmp/worker_heartbeat && [ $(($(date +%s) - $(stat -c %Y /tmp/worker_heartbeat))) -lt 180 ]'
-            initialDelaySeconds: 15
+                - "import os, time, sys; sys.exit(0 if os.path.exists('/tmp/worker_heartbeat') and (time.time() - os.path.getmtime('/tmp/worker_heartbeat')) < 300 else 1)"
+            initialDelaySeconds: 20
             periodSeconds: 20
             failureThreshold: 3

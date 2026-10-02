@@ -165,15 +165,15 @@ def index():
     return render_template_string(HTML_TEMPLATE, last_ts=last_ts, stats=stats, pods=pods)
 
 def run_worker():
-    print("Starting worker process...")
+    print("Starting worker process...", flush=True)
     heartbeat_file = "/tmp/worker_heartbeat"
 
-    # Touch heartbeat file immediately on startup so probes pass right away
+    # Touch heartbeat file immediately on startup so probes pass during initialization
     try:
         with open(heartbeat_file, "w") as f:
             f.write(str(time.time()))
     except Exception as e:
-        print(f"Error creating initial heartbeat file: {e}")
+        print(f"Error creating initial heartbeat file: {e}", flush=True)
 
     while True:
         try:
@@ -190,12 +190,12 @@ def run_worker():
             cur.close()
             conn.close()
 
-            # Update heartbeat file on successful DB write
+            # Update heartbeat timestamp file on successful DB write
             with open(heartbeat_file, "w") as f:
                 f.write(str(time.time()))
-            print("Keepalive written successfully.")
+            print("Keepalive written successfully.", flush=True)
         except Exception as e:
-            print(f"Error writing to DB: {e}")
+            print(f"Error writing to DB: {e}", flush=True)
 
         time.sleep(60)
 

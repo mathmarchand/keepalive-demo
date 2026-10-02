@@ -168,6 +168,13 @@ def run_worker():
     print("Starting worker process...")
     heartbeat_file = "/tmp/worker_heartbeat"
 
+    # Touch heartbeat file immediately on startup so probes pass right away
+    try:
+        with open(heartbeat_file, "w") as f:
+            f.write(str(time.time()))
+    except Exception as e:
+        print(f"Error creating initial heartbeat file: {e}")
+
     while True:
         try:
             conn = get_db_connection()
@@ -183,7 +190,7 @@ def run_worker():
             cur.close()
             conn.close()
 
-            # Touch heartbeat file to signal health to Kubernetes probes
+            # Update heartbeat file on successful DB write
             with open(heartbeat_file, "w") as f:
                 f.write(str(time.time()))
             print("Keepalive written successfully.")

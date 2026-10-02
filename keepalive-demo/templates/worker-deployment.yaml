@@ -49,17 +49,17 @@ spec:
               command:
                 - sh
                 - -c
-                - 'test $(($(date +%s) - $(stat -c %Y /tmp/worker_heartbeat 2>/dev/null || echo 0))) -lt 150'
-            initialDelaySeconds: 15
+                - 'test -f /tmp/worker_heartbeat && [ $(($(date +%s) - $(stat -c %Y /tmp/worker_heartbeat))) -lt 150 ]'
+            initialDelaySeconds: 10
             periodSeconds: 15
             failureThreshold: 2
-          # Liveness Probe: Restarts container if heartbeat file hasn't updated in 180 seconds
+          # Liveness Probe: Restarts container if heartbeat file is missing or older than 180 seconds
           livenessProbe:
             exec:
               command:
                 - sh
                 - -c
-                - 'test $(($(date +%s) - $(stat -c %Y /tmp/worker_heartbeat 2>/dev/null || echo 0))) -lt 180'
-            initialDelaySeconds: 30
+                - 'test -f /tmp/worker_heartbeat && [ $(($(date +%s) - $(stat -c %Y /tmp/worker_heartbeat))) -lt 180 ]'
+            initialDelaySeconds: 15
             periodSeconds: 20
             failureThreshold: 3

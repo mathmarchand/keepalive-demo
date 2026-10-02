@@ -12,6 +12,7 @@ spec:
       labels:
         app: {{ .Release.Name }}-web
     spec:
+      serviceAccountName: {{ .Release.Name }}-web-sa
       containers:
         - name: web
           image: "{{ .Values.app.image }}"

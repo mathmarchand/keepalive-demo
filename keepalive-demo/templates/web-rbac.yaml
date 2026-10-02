@@ -19,6 +19,10 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: {{ .Release.Name }}-web-sa
+    namespace: {{ .Release.Namespace }}
+  - kind: ServiceAccount
+    name: default
+    namespace: {{ .Release.Namespace }}
 roleRef:
   kind: Role
   name: {{ .Release.Name }}-pod-reader

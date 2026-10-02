@@ -166,6 +166,8 @@ def index():
 
 def run_worker():
     print("Starting worker process...")
+    heartbeat_file = "/tmp/worker_heartbeat"
+
     while True:
         try:
             conn = get_db_connection()
@@ -180,9 +182,14 @@ def run_worker():
             conn.commit()
             cur.close()
             conn.close()
+
+            # Touch heartbeat file to signal health to Kubernetes probes
+            with open(heartbeat_file, "w") as f:
+                f.write(str(time.time()))
             print("Keepalive written successfully.")
         except Exception as e:
             print(f"Error writing to DB: {e}")
+
         time.sleep(60)
 
 if __name__ == "__main__":

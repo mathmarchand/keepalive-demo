@@ -12,6 +12,16 @@ spec:
       labels:
         app: {{ .Release.Name }}-worker
     spec:
+      # Fast Eviction: Force K8s to reschedule pod to another node within 10s if node fails
+      tolerations:
+        - key: "node.kubernetes.io/not-ready"
+          operator: "Exists"
+          effect: "NoExecute"
+          tolerationSeconds: 10
+        - key: "node.kubernetes.io/unreachable"
+          operator: "Exists"
+          effect: "NoExecute"
+          tolerationSeconds: 10
       containers:
         - name: worker
           image: "{{ .Values.app.image }}"
@@ -33,3 +43,23 @@ spec:
                 secretKeyRef:
                   name: {{ .Release.Name }}-db-secret
                   key: DB_PASS
+          # Readiness Probe: Checks if heartbeat file was modified in the last 150 seconds
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - 'test $(($(date +%s) - $(stat -c %Y /tmp/worker_heartbeat 2>/dev/null || echo 0))) -lt 150'
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            failureThreshold: 2
+          # Liveness Probe: Restarts container if heartbeat file hasn't updated in 180 seconds
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - 'test $(($(date +%s) - $(stat -c %Y /tmp/worker_heartbeat 2>/dev/null || echo 0))) -lt 180'
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 3

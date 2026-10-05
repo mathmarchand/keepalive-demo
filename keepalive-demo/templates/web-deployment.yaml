@@ -15,7 +15,6 @@ spec:
       serviceAccountName: {{ .Release.Name }}-web-sa
       containers:
         - name: web
-
           image: "{{ .Values.app.repository }}:{{ .Values.app.tag }}"
           imagePullPolicy: {{ .Values.app.imagePullPolicy }}
           env:

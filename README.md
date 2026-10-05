@@ -151,22 +151,26 @@ juju run app-db-credentials/leader get-credentials
 
 ### Step 3: Deploy the Application with Helm
 
-1. Update `values.yaml` with your image reference:
+1. Update `values.yaml` with your image repository (the `tag` defaults to the value in `values.yaml`, but is typically overridden per-deployment, see step 2):
 ```yaml
 app:
-  image: "your-registry/keepalive-demo:1.0.0"
+  repository: "your-registry/keepalive-demo"
+  tag: "1.0.0"
 
 ```
 
 
-2. Deploy the Helm release into the `keepalive` namespace, injecting the Juju DB credentials:
+2. Deploy the Helm release into the `keepalive` namespace, injecting the Juju DB credentials and the desired image tag:
 ```bash
 helm upgrade --install my-keepalive-demo ./keepalive-demo \
   -n keepalive \
   --set db.username="<USERNAME_FROM_JUJU>" \
-  --set db.password="<PASSWORD_FROM_JUJU>"
+  --set db.password="<PASSWORD_FROM_JUJU>" \
+  --set app.tag="1.0.0"
 
 ```
+
+> To roll out a new image build later, simply re-run `helm upgrade` with a different `--set app.tag=<new-tag>` without touching `values.yaml`.
 
 
 3. Verify all pods are running and ready:

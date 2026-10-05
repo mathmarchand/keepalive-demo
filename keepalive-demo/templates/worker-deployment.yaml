@@ -24,7 +24,7 @@ spec:
           tolerationSeconds: 10
       containers:
         - name: worker
-          image: "{{ .Values.app.image }}"
+          image: "{{ .Values.app.repository }}:{{ .Values.app.tag }}"
           imagePullPolicy: {{ .Values.app.imagePullPolicy }}
           env:
             - name: APP_MODE

@@ -1,5 +1,6 @@
 app:
-  image: "harbor01.projek-survival.dontexist.com/library/keepalive-demo:1.0.4" 
+  repository: "harbor01.projek-survival.dontexist.com/library/keepalive-demo"
+  tag: "1.0.5" # Override with --set app.tag=<tag> on helm upgrade/install
   imagePullPolicy: IfNotPresent
   
 web:

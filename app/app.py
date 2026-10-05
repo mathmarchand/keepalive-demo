@@ -25,8 +25,29 @@ def get_namespace():
             return f.read().strip()
     return "keepalive"
 
-def get_pod_statuses():
-    pods_info = []
+def classify_pod(pod):
+    """Classify a pod into one of 'db', 'web', 'worker', or None (unknown)."""
+    labels = pod.metadata.labels or {}
+    app_label = labels.get("app", "")
+    k8s_app_label = labels.get("app.kubernetes.io/name", "")
+    name = pod.metadata.name or ""
+
+    if name.startswith("db-") or "postgresql" in k8s_app_label or "postgres" in app_label:
+        return "db"
+    elif "worker" in app_label:
+        return "worker"
+    elif "web" in app_label:
+        return "web"
+    return None
+
+def get_pod_summary():
+    """Return a summary of ready/total pod counts for db, web, and worker groups."""
+    summary = {
+        "db": {"label": "Database (db-)", "ready": 0, "total": 0},
+        "web": {"label": "Web Service", "ready": 0, "total": 0},
+        "worker": {"label": "Workers", "ready": 0, "total": 0},
+    }
+    error = None
     try:
         try:
             config.load_incluster_config()
@@ -38,39 +59,21 @@ def get_pod_statuses():
         pod_list = v1.list_namespaced_pod(namespace)
         
         for pod in pod_list.items:
-            labels = pod.metadata.labels or {}
-            app_label = labels.get("app", "")
-            k8s_app_label = labels.get("app.kubernetes.io/name", "")
-            
-            if "web" in app_label:
-                pod_type = "Web Frontend"
-            elif "worker" in app_label:
-                pod_type = "Worker"
-            elif "postgresql" in k8s_app_label or "postgres" in app_label:
-                pod_type = "Database (Charmed PostgreSQL)"
-            else:
-                pod_type = "Other"
-            
+            category = classify_pod(pod)
+            if category is None:
+                continue
+
             ready = False
             if pod.status.container_statuses:
                 ready = all(cs.ready for cs in pod.status.container_statuses)
-            
-            pods_info.append({
-                "name": pod.metadata.name,
-                "type": pod_type,
-                "phase": pod.status.phase,
-                "ready": "Ready" if ready else "Not Ready",
-                "ip": pod.status.pod_ip or "N/A"
-            })
+
+            summary[category]["total"] += 1
+            if ready:
+                summary[category]["ready"] += 1
     except Exception as e:
-        pods_info.append({
-            "name": "Error querying K8s API",
-            "type": "N/A",
-            "phase": str(e),
-            "ready": "N/A",
-            "ip": "N/A"
-        })
-    return pods_info
+        error = str(e)
+
+    return summary, error
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -88,6 +91,24 @@ HTML_TEMPLATE = """
         tr:nth-child(even) { background-color: #f2f2f2; }
         .status-ready { color: green; font-weight: bold; }
         .status-notready { color: red; font-weight: bold; }
+        .squares { display: flex; gap: 20px; flex-wrap: wrap; }
+        .square {
+            width: 160px;
+            height: 160px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+        }
+        .square.healthy { background-color: #28a745; }
+        .square.unhealthy { background-color: #dc3545; }
+        .square .count { font-size: 2.2em; font-weight: bold; }
+        .square .label { font-size: 1em; margin-top: 10px; }
+        .pod-error { color: red; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -101,24 +122,18 @@ HTML_TEMPLATE = """
 
     <div class="card">
         <h3>Pods Status</h3>
-        <table>
-            <tr>
-                <th>Pod Name</th>
-                <th>Component</th>
-                <th>Phase</th>
-                <th>Health Status</th>
-                <th>Pod IP</th>
-            </tr>
-            {% for pod in pods %}
-            <tr>
-                <td>{{ pod.name }}</td>
-                <td>{{ pod.type }}</td>
-                <td>{{ pod.phase }}</td>
-                <td class="{{ 'status-ready' if pod.ready == 'Ready' else 'status-notready' }}">{{ pod.ready }}</td>
-                <td>{{ pod.ip }}</td>
-            </tr>
+        <div class="squares">
+            {% for key in ['db', 'web', 'worker'] %}
+            {% set info = pods[key] %}
+            <div class="square {{ 'healthy' if info.total > 0 and info.ready == info.total else 'unhealthy' }}">
+                <div class="count">{{ info.ready }} / {{ info.total }}</div>
+                <div class="label">{{ info.label }}</div>
+            </div>
             {% endfor %}
-        </table>
+        </div>
+        {% if pod_error %}
+        <p class="pod-error">Error querying Kubernetes API: {{ pod_error }}</p>
+        {% endif %}
     </div>
 
     <div class="card">
@@ -161,8 +176,8 @@ def index():
         last_ts = f"DB Error: {e}"
         stats = []
 
-    pods = get_pod_statuses()
-    return render_template_string(HTML_TEMPLATE, last_ts=last_ts, stats=stats, pods=pods)
+    pods, pod_error = get_pod_summary()
+    return render_template_string(HTML_TEMPLATE, last_ts=last_ts, stats=stats, pods=pods, pod_error=pod_error)
 
 def run_worker():
     print("Starting worker process...", flush=True)

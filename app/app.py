@@ -41,12 +41,22 @@ def classify_pod(pod):
     return None
 
 def get_pod_summary():
-    """Return a summary of ready/total pod counts for db, web, and worker groups."""
+    """Return a summary of ready pod counts vs. expected replica counts for
+    the db, web, and worker groups.
+
+    The "expected" total is read directly from the owning Deployment's
+    (web/worker) or StatefulSet's (db-) replica spec, rather than from the
+    number of pods currently found, so that missing/crashed pods correctly
+    show up as a shortfall (e.g. 2/3) instead of silently shrinking the
+    total.
+    """
     summary = {
         "db": {"label": "Database (db-)", "ready": 0, "total": 0},
         "web": {"label": "Web Service", "ready": 0, "total": 0},
         "worker": {"label": "Workers", "ready": 0, "total": 0},
     }
+    # Fallback counts, used only if we can't read the Deployment/StatefulSet specs
+    pods_found = {"db": 0, "web": 0, "worker": 0}
     error = None
     try:
         try:
@@ -55,7 +65,32 @@ def get_pod_summary():
             config.load_kube_config()
         
         v1 = client.CoreV1Api()
+        apps_v1 = client.AppsV1Api()
         namespace = get_namespace()
+
+        # Expected replicas for web/worker come from their Deployments.
+        try:
+            deployments = apps_v1.list_namespaced_deployment(namespace)
+            for dep in deployments.items:
+                name = dep.metadata.name or ""
+                replicas = dep.spec.replicas or 0
+                if name.endswith("-web"):
+                    summary["web"]["total"] = replicas
+                elif name.endswith("-worker"):
+                    summary["worker"]["total"] = replicas
+        except Exception:
+            pass
+
+        # Expected replicas for the db- pods come from their StatefulSet(s).
+        try:
+            statefulsets = apps_v1.list_namespaced_stateful_set(namespace)
+            for sts in statefulsets.items:
+                name = sts.metadata.name or ""
+                if name.startswith("db"):
+                    summary["db"]["total"] += sts.spec.replicas or 0
+        except Exception:
+            pass
+
         pod_list = v1.list_namespaced_pod(namespace)
         
         for pod in pod_list.items:
@@ -67,9 +102,16 @@ def get_pod_summary():
             if pod.status.container_statuses:
                 ready = all(cs.ready for cs in pod.status.container_statuses)
 
-            summary[category]["total"] += 1
+            pods_found[category] += 1
             if ready:
                 summary[category]["ready"] += 1
+
+        # Fall back to the number of pods actually found if we couldn't
+        # determine the expected replica count (e.g. missing RBAC permissions
+        # on deployments/statefulsets).
+        for key in summary:
+            if summary[key]["total"] == 0 and pods_found[key] > 0:
+                summary[key]["total"] = pods_found[key]
     except Exception as e:
         error = str(e)
 

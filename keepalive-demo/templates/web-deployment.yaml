@@ -36,3 +36,24 @@ spec:
                   key: DB_PASS
           ports:
             - containerPort: 8080
+          # Readiness Probe: Hits the dashboard's root path (the only path
+          # allowed by the Cilium L7 policy) to confirm Flask is up and
+          # serving requests before receiving traffic from the Service.
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # Liveness Probe: Restarts the container if it stops responding
+          # on its root path entirely (e.g. the Flask process has hung/crashed).
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3

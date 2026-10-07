@@ -116,9 +116,9 @@ juju add-model keepalive
 ```
 
 
-2. Deploy 3 units of Charmed PostgreSQL K8s backed by `cephxfs` storage:
+2. Deploy 3 units of Charmed PostgreSQL K8s backed by `ceph-xfs` storage:
 ```bash
-juju deploy postgresql-k8s db -n 3 --channel 14/stable --storage pgdata=cephxfs,10G
+juju deploy postgresql-k8s db -n 3 --channel 16/stable --storage data=10G --trust
 
 ```
 
@@ -195,7 +195,7 @@ echo "Access Dashboard at: http://${EXTERNAL_IP}/"
 
 2. Open `http://${EXTERNAL_IP}/` in your browser. The dashboard displays:
 * **Last Timestamp Registered**: The latest keepalive message written by the worker.
-* **Pods Status Table**: Real-time status of Web, Worker, and Charmed PostgreSQL pods queried directly from the Kubernetes API.
+* **Pods Status Tiles**: One tile each for the Database (`db-`), Web, and Worker pods, showing ready pods vs. expected replicas (from the StatefulSet/Deployment spec). A tile is green when all replicas are ready and red otherwise.
 * **Keepalive Messages Table**: Historical count of keepalives grouped by minute.
 * **Auto-refresh**: The page refreshes automatically every 60 seconds.
 

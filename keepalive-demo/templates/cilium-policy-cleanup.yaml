@@ -1,0 +1,32 @@
+{{- if .Values.cleanup.enabled }}
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-cleanup-policy
+spec:
+  endpointSelector:
+    matchLabels:
+      app: {{ .Release.Name }}-cleanup
+  egress:
+    # 1. Allow DNS resolution to kube-dns/coredns
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+          rules:
+            dns:
+              - matchPattern: "*"
+    # 2. Allow egress ONLY to Charmed PostgreSQL on port 5432
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: db
+      toPorts:
+        - ports:
+            - port: "5432"
+              protocol: TCP
+{{- end }}

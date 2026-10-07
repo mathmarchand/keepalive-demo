@@ -117,82 +117,141 @@ def get_pod_summary():
 
     return summary, error
 
+# Canonical Vanilla Framework v3.0.0, served from Canonical's asset CDN.
+# The stylesheet is fetched by the end user's browser (not by the pod), so the
+# web pod's Cilium egress policy does not need to allow it.
+VANILLA_CSS_URL = os.getenv(
+    "VANILLA_CSS_URL",
+    "https://assets.ubuntu.com/v1/vanilla-framework-version-3.0.0.min.css",
+)
+
 HTML_TEMPLATE = """
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Keepalive Dashboard</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta http-equiv="refresh" content="60">
+    <title>Keepalive Dashboard</title>
+    <link rel="stylesheet" href="{{ vanilla_css_url }}">
     <style>
-        body { font-family: Arial, sans-serif; margin: 30px; background-color: #f8f9fa; }
-        h2, h3 { color: #212529; }
-        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #dee2e6; padding: 10px; text-align: left; }
-        th { background-color: #0066cc; color: white; }
-        tr:nth-child(even) { background-color: #f2f2f2; }
-        .status-ready { color: green; font-weight: bold; }
-        .status-notready { color: red; font-weight: bold; }
-        .squares { display: flex; gap: 20px; flex-wrap: wrap; }
-        .square {
-            width: 160px;
-            height: 160px;
-            border-radius: 8px;
+        /* Status tiles: Vanilla p-card coloured with Vanilla's
+           positive (#0e8420) and negative (#c7162b) palette colours. */
+        .status-tile {
+            color: #fff;
+            text-align: center;
+            border: 0;
+            min-height: 10rem;
             display: flex;
             flex-direction: column;
-            align-items: center;
             justify-content: center;
-            color: white;
-            text-align: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
         }
-        .square.healthy { background-color: #28a745; }
-        .square.unhealthy { background-color: #dc3545; }
-        .square .count { font-size: 2.2em; font-weight: bold; }
-        .square .label { font-size: 1em; margin-top: 10px; }
-        .pod-error { color: red; margin-top: 10px; }
+        .status-tile.is-healthy { background-color: #0e8420; }
+        .status-tile.is-unhealthy { background-color: #c7162b; }
+        .status-tile__count {
+            font-size: 3rem;
+            font-weight: 300;
+            line-height: 1.2;
+            margin: 0;
+            padding: 0;
+        }
+        .status-tile__label {
+            margin: 0;
+            padding: 0;
+        }
     </style>
 </head>
 <body>
-    <h2>Keepalive Status Dashboard</h2>
-    <p><i>Auto-refreshing every 60 seconds...</i></p>
-
-    <div class="card">
-        <strong>Last Registered Timestamp in DB:</strong> 
-        <span style="color: #0066cc; font-size: 1.2em; font-weight: bold;">{{ last_ts }}</span>
-    </div>
-
-    <div class="card">
-        <h3>Pods Status</h3>
-        <div class="squares">
-            {% for key in ['db', 'web', 'worker'] %}
-            {% set info = pods[key] %}
-            <div class="square {{ 'healthy' if info.total > 0 and info.ready == info.total else 'unhealthy' }}">
-                <div class="count">{{ info.ready }} / {{ info.total }}</div>
-                <div class="label">{{ info.label }}</div>
+    <header class="p-navigation is-dark">
+        <div class="p-navigation__row">
+            <div class="p-navigation__banner">
+                <div class="p-navigation__logo">
+                    <a class="p-navigation__item" href="/">Keepalive Status Dashboard</a>
+                </div>
             </div>
-            {% endfor %}
         </div>
-        {% if pod_error %}
-        <p class="pod-error">Error querying Kubernetes API: {{ pod_error }}</p>
-        {% endif %}
-    </div>
+    </header>
 
-    <div class="card">
-        <h3>Keepalive Registered Messages Per Minute</h3>
-        <table>
-            <tr>
-                <th>Minute</th>
-                <th>Keepalive Count</th>
-            </tr>
-            {% for row in stats %}
-            <tr>
-                <td>{{ row[0] }}</td>
-                <td>{{ row[1] }}</td>
-            </tr>
-            {% endfor %}
-        </table>
-    </div>
+    <main>
+        <section class="p-strip is-shallow">
+            <div class="row">
+                <div class="col-12">
+                    <p class="p-text--small u-text--muted">Auto-refreshing every 60 seconds</p>
+
+                    {% if db_error %}
+                    <div class="p-notification--negative">
+                        <div class="p-notification__content">
+                            <h5 class="p-notification__title">Database error</h5>
+                            <p class="p-notification__message">{{ db_error }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if pod_error %}
+                    <div class="p-notification--negative">
+                        <div class="p-notification__content">
+                            <h5 class="p-notification__title">Kubernetes API error</h5>
+                            <p class="p-notification__message">{{ pod_error }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="p-card">
+                        <h4 class="p-muted-heading">Last registered timestamp in DB</h4>
+                        <p class="p-heading--3 u-no-margin--bottom">{{ last_ts }}</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="p-strip is-shallow u-no-padding--top">
+            <div class="row">
+                <div class="col-12">
+                    <h2 class="p-heading--4">Pods status</h2>
+                </div>
+            </div>
+            <div class="row">
+                {% for key in ['db', 'web', 'worker'] %}
+                {% set info = pods[key] %}
+                {% set healthy = info.total > 0 and info.ready == info.total %}
+                <div class="col-4">
+                    <div class="p-card status-tile {{ 'is-healthy' if healthy else 'is-unhealthy' }}">
+                        <p class="status-tile__count">{{ info.ready }} / {{ info.total }}</p>
+                        <p class="status-tile__label">{{ info.label }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="p-strip is-shallow u-no-padding--top">
+            <div class="row">
+                <div class="col-12">
+                    <h2 class="p-heading--4">Keepalive messages registered per minute</h2>
+                    <table class="p-table--mobile-card" aria-label="Keepalive messages per minute">
+                        <thead>
+                            <tr>
+                                <th>Minute</th>
+                                <th class="u-align--right">Keepalive count</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in stats %}
+                            <tr>
+                                <td data-heading="Minute">{{ row[0] }}</td>
+                                <td data-heading="Keepalive count" class="u-align--right">{{ row[1] }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="2" class="u-text--muted">No keepalive data available</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
 </body>
 </html>
 """
@@ -215,11 +274,22 @@ def index():
         stats = cur.fetchall()
         conn.close()
     except Exception as e:
-        last_ts = f"DB Error: {e}"
+        last_ts = "Unavailable"
         stats = []
+        db_error = str(e)
+    else:
+        db_error = None
 
     pods, pod_error = get_pod_summary()
-    return render_template_string(HTML_TEMPLATE, last_ts=last_ts, stats=stats, pods=pods, pod_error=pod_error)
+    return render_template_string(
+        HTML_TEMPLATE,
+        vanilla_css_url=VANILLA_CSS_URL,
+        last_ts=last_ts,
+        stats=stats,
+        pods=pods,
+        pod_error=pod_error,
+        db_error=db_error,
+    )
 
 def run_worker():
     print("Starting worker process...", flush=True)
@@ -256,9 +326,37 @@ def run_worker():
 
         time.sleep(60)
 
+def run_cleanup():
+    """Delete keepalive rows older than RETENTION_HOURS (default 24), then exit.
+
+    Intended to be run as a Kubernetes CronJob. Exits non-zero on failure so
+    the Job is marked as failed and retried according to its backoffLimit.
+    """
+    retention_hours = int(os.getenv("RETENTION_HOURS", "24"))
+    print(f"Starting cleanup: deleting keepalives older than {retention_hours}h...", flush=True)
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT to_regclass('keepalives');")
+                if cur.fetchone()[0] is None:
+                    print("Table 'keepalives' does not exist yet, nothing to clean.", flush=True)
+                    return
+                cur.execute(
+                    "DELETE FROM keepalives WHERE ts < NOW() - make_interval(hours => %s);",
+                    (retention_hours,),
+                )
+                deleted = cur.rowcount
+            conn.commit()
+        print(f"Cleanup complete: {deleted} row(s) deleted.", flush=True)
+    except Exception as e:
+        print(f"Error during cleanup: {e}", flush=True)
+        raise SystemExit(1)
+
 if __name__ == "__main__":
     mode = os.getenv("APP_MODE", "web")
     if mode == "worker":
         run_worker()
+    elif mode == "cleanup":
+        run_cleanup()
     else:
         app.run(host="0.0.0.0", port=8080)

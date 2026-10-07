@@ -1,0 +1,59 @@
+{{- if .Values.cleanup.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}-cleanup
+  labels:
+    app: {{ .Release.Name }}-cleanup
+spec:
+  # Runs once a day (default 03:00) and deletes keepalives older than retentionHours
+  schedule: {{ .Values.cleanup.schedule | quote }}
+  {{- with .Values.cleanup.timeZone }}
+  timeZone: {{ . | quote }}
+  {{- end }}
+  # Never run two cleanups at the same time
+  concurrencyPolicy: Forbid
+  # If the controller missed the scheduled time (e.g. control plane down), still
+  # start the job as long as we are within this window
+  startingDeadlineSeconds: {{ .Values.cleanup.startingDeadlineSeconds }}
+  successfulJobsHistoryLimit: {{ .Values.cleanup.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.cleanup.failedJobsHistoryLimit }}
+  jobTemplate:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-cleanup
+    spec:
+      # Retry a few times (e.g. during a Patroni primary failover)
+      backoffLimit: {{ .Values.cleanup.backoffLimit }}
+      activeDeadlineSeconds: {{ .Values.cleanup.activeDeadlineSeconds }}
+      ttlSecondsAfterFinished: {{ .Values.cleanup.ttlSecondsAfterFinished }}
+      template:
+        metadata:
+          labels:
+            app: {{ .Release.Name }}-cleanup
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: cleanup
+              image: "{{ .Values.app.repository }}:{{ .Values.app.tag }}"
+              imagePullPolicy: {{ .Values.app.imagePullPolicy }}
+              env:
+                - name: APP_MODE
+                  value: "cleanup"
+                - name: RETENTION_HOURS
+                  value: {{ .Values.cleanup.retentionHours | quote }}
+                - name: DB_HOST
+                  value: {{ .Values.db.host | quote }}
+                - name: DB_NAME
+                  value: {{ .Values.db.database | quote }}
+                - name: DB_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Release.Name }}-db-secret
+                      key: DB_USER
+                - name: DB_PASS
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Release.Name }}-db-secret
+                      key: DB_PASS
+{{- end }}

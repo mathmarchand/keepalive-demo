@@ -13,6 +13,18 @@ web:
 worker:
   replicaCount: 1 # Only 1 replica needed to write exactly once a minute
 
+cleanup:
+  enabled: true
+  schedule: "0 3 * * *"      # Every day at 03:00
+  timeZone: ""               # e.g. "Etc/UTC" (requires K8s >= 1.27); empty = kube-controller-manager TZ
+  retentionHours: 24         # Delete keepalives older than this
+  startingDeadlineSeconds: 3600
+  backoffLimit: 3
+  activeDeadlineSeconds: 600
+  ttlSecondsAfterFinished: 86400
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+
 db:
   # Charmed PostgreSQL creates a 'db-primary' service in the Juju model namespace
   host: "db-primary.keepalive.svc.cluster.local"

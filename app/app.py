@@ -125,6 +125,13 @@ VANILLA_CSS_URL = os.getenv(
     "https://assets.ubuntu.com/v1/vanilla-framework-version-3.0.0.min.css",
 )
 
+# Canonical "Circle of Friends" logo (white), the same asset used in the
+# canonical.com header. Also fetched by the browser, not the pod.
+CANONICAL_LOGO_URL = os.getenv(
+    "CANONICAL_LOGO_URL",
+    "https://assets.ubuntu.com/v1/82818827-CoF_white.svg",
+)
+
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
@@ -159,14 +166,50 @@ HTML_TEMPLATE = """
             margin: 0;
             padding: 0;
         }
+
+        /* Header brand: Canonical orange tag with the white Circle of Friends
+           logo, followed by the plain-text page title (no link, as in the
+           canonical.com header). Vanilla 3.0.0 has no tagged-logo component,
+           so it is styled here. */
+        .brand {
+            display: flex;
+            align-items: flex-start;
+        }
+        .brand__tag {
+            background-color: #e95420;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            width: 2rem;
+            height: 3rem;
+            padding-bottom: 0.4rem;
+            margin-right: 0.75rem;
+            flex-shrink: 0;
+        }
+        .brand__logo {
+            width: 1.25rem;
+            height: auto;
+            display: block;
+        }
+        .brand__title {
+            color: #fff;
+            margin: 0;
+            padding: 0.75rem 0 0;
+            font-size: 1rem;
+            line-height: 1.5rem;
+            font-weight: 400;
+        }
     </style>
 </head>
 <body>
     <header class="p-navigation is-dark">
         <div class="p-navigation__row">
             <div class="p-navigation__banner">
-                <div class="p-navigation__logo">
-                    <a class="p-navigation__item" href="/">Keepalive Status Dashboard</a>
+                <div class="brand">
+                    <div class="brand__tag">
+                        <img class="brand__logo" src="{{ canonical_logo_url }}" alt="Canonical">
+                    </div>
+                    <h1 class="brand__title">Keepalive Status Dashboard</h1>
                 </div>
             </div>
         </div>
@@ -284,6 +327,7 @@ def index():
     return render_template_string(
         HTML_TEMPLATE,
         vanilla_css_url=VANILLA_CSS_URL,
+        canonical_logo_url=CANONICAL_LOGO_URL,
         last_ts=last_ts,
         stats=stats,
         pods=pods,

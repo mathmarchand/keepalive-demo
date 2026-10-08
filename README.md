@@ -46,7 +46,7 @@ This repository contains a complete, production-grade demo application designed 
 * **Frontend Web Application**: Python (Flask) running 3 replicas behind a Kubernetes `LoadBalancer` Service. Auto-refreshes every 60 seconds and queries the Kubernetes API Server for live pod health.
 * **Worker Service**: Singleton Python background worker based on **Ubuntu 26.04** using **`psycopg` (v3)** to insert timestamps every minute.
 * **Database**: **Canonical Charmed PostgreSQL K8s** deployed via Juju in a 3-unit HA topology with automatic failover, backed by **CephXFS** persistent storage.
-* **Network Security**: **Cilium Network Policies** enforcing L7 HTTP filtering (`GET /` allowed; all other HTTP methods and paths rejected with `403 Forbidden`) and egress/ingress isolation on database ports.
+* **Network Security**: **Cilium Network Policies** enforcing L7 HTTP filtering (`GET /` and `GET /static/vendor/*` allowed; all other HTTP methods and paths rejected with `403 Forbidden`) and egress/ingress isolation on database ports.
 
 ---
 
@@ -66,10 +66,14 @@ Ensure you have the following installed and configured on your management machin
 ## Project Structure
 
 ```text
-keepalive-demo/
-├── Dockerfile
+app/
+├── Dockerfile              # Multi-stage: builds web assets, then the Ubuntu 26.04 app image
 ├── requirements.txt
-├── app.py
+├── app.py                  # Web (default), worker and cleanup modes (APP_MODE)
+└── assets/
+    ├── vanilla.scss        # Vanilla Framework build, compiled at image build time
+    └── fetch-assets.sh     # Downloads the Ubuntu fonts + Canonical logo at build time
+keepalive-demo/
 ├── Chart.yaml
 ├── values.yaml
 └── templates/
@@ -78,9 +82,10 @@ keepalive-demo/
     ├── web-service.yaml
     ├── web-rbac.yaml
     ├── worker-deployment.yaml
+    ├── cleanup-cronjob.yaml
     ├── cilium-policy-web.yaml
     ├── cilium-policy-worker.yaml
-    └── cilium-policy-db.yaml
+    └── cilium-policy-cleanup.yaml
 
 ```
 
@@ -90,11 +95,16 @@ keepalive-demo/
 
 ### Step 1: Build and Push Container Image
 
-1. Build the application container image using the Ubuntu 26.04 base Dockerfile:
+1. Build the application container image from the `app/` directory:
 ```bash
-docker build -t your-registry/keepalive-demo:1.0.0 .
+docker build -t your-registry/keepalive-demo:1.0.0 app/
 
 ```
+
+> **Web assets are bundled in the image.** The dashboard does not load anything from `assets.ubuntu.com` at runtime. During the build, a first stage compiles Vanilla Framework 3.0.0 from npm and downloads the Ubuntu web fonts and the Canonical logo from `assets.ubuntu.com`. The app then serves them itself from `/static/vendor/`.
+>
+> * The build machine needs access to the npm registry and to `assets.ubuntu.com`. Each asset download is retried several times. If `assets.ubuntu.com` is still unavailable, the build **fails** rather than producing an image with missing fonts, so just re-run it later. Docker caches this stage, so it only runs again when files in `app/assets/` change.
+> * To use a mirror instead, pass `--build-arg ASSETS_BASE_URL=https://your-mirror/v1`.
 
 
 2. Push the image to your container registry:
@@ -209,11 +219,14 @@ The chart includes three CiliumNetworkPolicy manifests (`cilium-policy-web`, `ci
 
 ### 1. Test Layer 7 HTTP Filtering on Web Frontend
 
-The web policy permits **only** `GET` requests to the root path (`/`). All other HTTP methods or unapproved routes must be blocked by Cilium's Envoy proxy.
+The web policy permits **only** `GET` requests to the root path (`/`) and to the bundled static assets (`/static/vendor/<file>`: the Vanilla CSS, Ubuntu fonts and Canonical logo). All other HTTP methods or unapproved routes must be blocked by Cilium's Envoy proxy.
 
 ```bash
 # 1. Allowed: GET request to root path -> Returns 200 OK
 curl -i -X GET http://${EXTERNAL_IP}/
+
+# 1b. Allowed: GET request to a bundled static asset -> Returns 200 OK
+curl -i -X GET http://${EXTERNAL_IP}/static/vendor/vanilla.min.css
 
 # 2. Denied: POST request to root path -> Returns 403 Access Denied
 curl -i -X POST http://${EXTERNAL_IP}/

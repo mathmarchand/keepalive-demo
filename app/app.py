@@ -3,6 +3,10 @@ from flask import Flask, render_template_string
 from kubernetes import client, config
 
 app = Flask(__name__)
+# Static assets (Vanilla CSS, Ubuntu fonts, Canonical logo) are bundled in the
+# image under ./static/vendor/ (see Dockerfile). Let browsers cache them for an
+# hour so the 60s auto-refresh doesn't re-request them every time.
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = int(os.getenv("STATIC_MAX_AGE", "3600"))
 
 DB_HOST = os.getenv("DB_HOST", "postgres")
 DB_USER = os.getenv("DB_USER", "postgres")
@@ -117,19 +121,17 @@ def get_pod_summary():
 
     return summary, error
 
-# Canonical Vanilla Framework v3.0.0, served from Canonical's asset CDN.
-# The stylesheet is fetched by the end user's browser (not by the pod), so the
-# web pod's Cilium egress policy does not need to allow it.
-VANILLA_CSS_URL = os.getenv(
-    "VANILLA_CSS_URL",
-    "https://assets.ubuntu.com/v1/vanilla-framework-version-3.0.0.min.css",
-)
+# Canonical Vanilla Framework v3.0.0, compiled at image build time and served
+# by this app from ./static/vendor/ (together with the Ubuntu web fonts it
+# references), so the browser never depends on assets.ubuntu.com, which is
+# unreliable. Can be overridden to point at an external URL if needed.
+VANILLA_CSS_URL = os.getenv("VANILLA_CSS_URL", "/static/vendor/vanilla.min.css")
 
 # Canonical "Circle of Friends" logo (white), the same asset used in the
-# canonical.com header. Also fetched by the browser, not the pod.
+# canonical.com header, bundled in the image as well.
 CANONICAL_LOGO_URL = os.getenv(
     "CANONICAL_LOGO_URL",
-    "https://assets.ubuntu.com/v1/82818827-CoF_white.svg",
+    "/static/vendor/82818827-CoF_white.svg",
 )
 
 HTML_TEMPLATE = """

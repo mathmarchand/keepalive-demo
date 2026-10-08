@@ -1,0 +1,8 @@
+// Vanilla Framework build for the dashboard, compiled at image build time.
+// All asset URLs (Ubuntu web fonts) point to the files bundled in the image
+// under /static/vendor/ instead of https://assets.ubuntu.com/v1/, so the
+// browser never has to reach assets.ubuntu.com at runtime.
+$assets-path: '/static/vendor/';
+
+@import 'vanilla-framework';
+@include vanilla;

@@ -17,6 +17,9 @@ spec:
             http:
               - method: "GET"
                 path: "^/$"
+              # Bundled static assets (Vanilla CSS, Ubuntu fonts, logo)
+              - method: "GET"
+                path: "^/static/vendor/[A-Za-z0-9._-]+$"
   egress:
     # 1. Allow DNS resolution
     - toEndpoints:
